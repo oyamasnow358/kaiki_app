@@ -1,91 +1,229 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, r2_score
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
 
-# セッション状態の初期化
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-if "selected_method" not in st.session_state:
-    st.session_state.selected_method = None
+# ------------------------------------------
+# CSVテンプレート作成用の文字列
+template_csv = """このCSVファイルは、回帰分析用のデータひな形です。
+最初の3行は各項目の説明を記載してください。
+行4以降に実際のデータを入力してください。
+【各列の説明】
+- ID: レコード番号（任意）
+- Y: 目的変数（例: 売上、テストの得点など）
+- X1, X2, ...: 説明変数（例: 気温、広告費、出席率など）
+※ 例として、以下はサンプルデータです。
 
-# ページ遷移関数：セッション状態を更新後、即時再レンダリング
-def go_to_page(page_name):
-    st.session_state.page = page_name
-    st.experimental_rerun()
+ID,Y,X1,X2,X3
+1,100,10,5,3
+2,110,12,6,4
+3,105,11,5,2
+"""
 
-# ホームページ
-def home():
-    st.title("特別支援教育ツール")
-    st.write("このツールでは、子供の困り感に応じた支援方法を探すことができます。")
+# ------------------------------------------
+# CSVテンプレートダウンロードボタンの設置
+st.title("回帰分析 WEB アプリ")
+st.markdown("### CSVテンプレートのダウンロード")
+st.write("""
+以下のボタンをクリックすると、各項目の説明が記載されたCSVファイルのひな形をダウンロードできます。  
+このテンプレートの**最初の3行**には各項目の説明が書かれており、**4行目以降**に実際のデータ（目的変数 Y と説明変数 X）が記載されます。  
+ご自身のデータを入力する際の参考にしてください。
+""")
+st.download_button(
+    label="CSVテンプレートをダウンロード",
+    data=template_csv,
+    file_name="template.csv",
+    mime="text/csv"
+)
 
-    # 困り感の選択
-    st.subheader("どんな困り感がありますか？")
-    difficulties = [
-        "落ち着きがない", 
-        "コミュニケーションが苦手", 
-        "自己管理ができない", 
-        "感情をコントロールできない", 
-        "学習面で遅れがある"
-    ]
-    selected_difficulty = st.selectbox("困り感を選択してください:", difficulties)
+st.markdown("---")
+st.markdown("### 回帰分析の実行方法")
+st.write("""
+1. サイドバーから、上記テンプレートに沿った形式のCSVファイルをアップロードしてください。  
+2. アップロード後、**目的変数（Y）**と**説明変数（X）**を選択します。  
+3. 「回帰分析を実行」ボタンを押すと、モデルの係数や評価指標、可視化グラフが表示されます。  
+※ CSVファイルの最初の3行は説明文として扱われるため、**ヘッダー行は4行目**に記載してください。
+""")
 
-    if selected_difficulty:
-        st.write(f"選択した困り感: **{selected_difficulty}**")
-        if st.button("適した方法を確認する"):
-            go_to_page("analysis_methods")
+# ------------------------------------------
+# CSVファイルアップロードとデータ読み込み
+st.sidebar.header("1. データのアップロード")
+uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード（ヘッダーは4行目）", type=["csv"])
 
-    # 分析方法一覧へのリンク
-    st.subheader("使える分析方法の一覧")
-    if st.button("分析方法一覧を見る"):
-        go_to_page("analysis_methods")
+if uploaded_file is not None:
+    try:
+        # ヘッダーが4行目にあるので、skiprows=3として読み込む（エンコーディングはcp932）
+        df = pd.read_csv(uploaded_file, skiprows=3, encoding='cp932')
+        st.write("### アップロードされたデータ（一部）")
+        st.dataframe(df.head())
+    except Exception as e:
+        st.error(f"ファイル読み込みエラー: {e}")
+        st.stop()
 
-# 分析方法の一覧ページ
-def analysis_methods():
-    st.title("分析方法の一覧")
-    st.write("以下の方法から選択して、詳細をご覧ください。")
-    methods = ["応用行動分析 (ABA)", "認知行動療法 (CBT)", "感覚統合療法", "その他"]
+    # ------------------------------------------
+    # 変数の選択（サイドバー）
+    st.sidebar.header("2. 変数の選択")
+    all_columns = df.columns.tolist()
 
-    for method in methods:
-        if st.button(f"➡ {method}", key=f"btn_{method}"):
-            st.session_state.selected_method = method
-            go_to_page("method_details")
+    target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
+    feature_vars = st.sidebar.multiselect(
+        "説明変数（X）を選択（複数選択可）",
+        [col for col in all_columns if col != target_var]
+    )
 
-    if st.button("⬅ ホームに戻る"):
-        go_to_page("home")
-
-# 各方法の詳細ページ
-def method_details():
-    method = st.session_state.get("selected_method", "方法が選択されていません")
-    st.title(f"{method} の詳細情報")
-
-    # どのような実態の子供に使えるか
-    st.subheader("どのような実態の子供に使えるか")
-    if method == "応用行動分析 (ABA)":
-        st.info("ABAは、行動面の課題を持つ子供に特に有効です。反復行動や適応スキルの不足が見られる場合に適用されます。")
-    elif method == "認知行動療法 (CBT)":
-        st.info("CBTは、不安、抑うつ、衝動性の課題を持つ子供に効果的です。感情調整スキル向上を目指します。")
-    elif method == "感覚統合療法":
-        st.info("感覚過敏や鈍感など、感覚処理の課題を持つ子供に有効です。")
+    if not feature_vars:
+        st.warning("説明変数（X）を少なくとも1つ選択してください。")
     else:
-        st.info("情報がありません。")
+        if st.sidebar.button("回帰分析を実行"):
+            # ------------------------------------------
+            # データ抽出と前処理
+            X = df[feature_vars]
+            y = df[target_var]
 
-    # 具体的な使い方
-    st.subheader("具体的な使い方")
-    if method == "応用行動分析 (ABA)":
-        st.image("https://via.placeholder.com/600x300", caption="ABAの実施例（図はサンプル）")
-        st.write("1. ターゲット行動を特定します。\n2. 行動を強化するための報酬を設定します。\n3. 反復的な練習を通じて行動を学びます。\n\nABAでは、行動を定量的に評価し、進捗を明確に把握します。")
-    elif method == "認知行動療法 (CBT)":
-        st.image("https://via.placeholder.com/600x300", caption="CBTでのセッション例（図はサンプル）")
-        st.write("1. 子供の思考パターンを一緒に確認します。\n2. 否定的な思考をポジティブな思考に置き換える練習を行います。\n3. ワークシートを用いて繰り返し実践します。\n\nCBTは感情の認識や管理スキルの向上を目指します。")
-    elif method == "感覚統合療法":
-        st.image("https://via.placeholder.com/600x300", caption="感覚統合療法の実施例（図はサンプル）")
-        st.write("1. 感覚刺激に応じた活動を設定します（例：バランスボール、触覚素材）。\n2. 子供が安心して取り組める環境を整えます。\n3. 繰り返しの活動を通じて感覚処理能力を高めます。")
+            # 欠損値の処理（平均値補完）
+            if X.isnull().any().any() or y.isnull().any():
+                st.warning("欠損値が検出されたため、平均値で補完します。")
+                X = X.fillna(X.mean())
+                y = y.fillna(y.mean())
 
-    if st.button("⬅ 分析方法一覧に戻る"):
-        go_to_page("analysis_methods")
+            # ------------------------------------------
+            # 線形回帰モデルの構築
+            model = LinearRegression()
+            model.fit(X, y)
 
-# ページの分岐
-if st.session_state.page == "home":
-    home()
-elif st.session_state.page == "analysis_methods":
-    analysis_methods()
-elif st.session_state.page == "method_details":
-    method_details()
+            # 予測値の算出
+            y_pred = model.predict(X)
+
+            # 評価指標の算出
+            mse = mean_squared_error(y, y_pred)
+            r2 = r2_score(y, y_pred)
+
+            st.subheader("モデル評価")
+            st.write(f"平均二乗誤差 (MSE): **{mse:.4f}**")
+            st.write(f"決定係数 (R²): **{r2:.4f}**")
+
+            # ------------------------------------------
+            # 統計初心者向けの全体の解説を返す関数
+            def explain_relationship(r2_value):
+                if r2_value >= 0.7:
+                    explanation = ("この結果は、説明変数と目的変数の間に**かなり強い関係**があることを示しています。")
+                elif r2_value >= 0.5:
+                    explanation = ("この結果は、説明変数と目的変数の間に**おそらく関係**があることを示唆しています。\n"
+                                   "また、関係性がある可能性は高いですが、他の要因も影響している可能性があります。")
+                elif r2_value >= 0.3:
+                    explanation = ("この結果は、説明変数と目的変数の間に**関係がある可能性もある**ことを示していますが、"
+                                   "その関係はそこまで明確ではなく、予測精度は低めです。")
+                elif r2_value >= 0.1:
+                    explanation = ("この結果は、説明変数と目的変数の間に**あまり関係がない**ことを示しています。\n"
+                                   "関係は限定的で、他の要因が大きく影響している可能性があります。")
+                else:
+                    explanation = ("この結果は、説明変数と目的変数の間に**全く関係がない**、または非常に弱い関係しかないことを示しています。")
+                return explanation
+
+            # 統計解説の表示（全体の結果）
+            explanation_text = explain_relationship(r2)
+            st.markdown("**【統計解説】**")
+            st.write(explanation_text)
+
+            # ------------------------------------------
+            # 複数の説明変数がある場合、各変数ごとの目的変数との相関関係と解説を表示する
+            if len(feature_vars) > 1:
+                st.subheader("各説明変数と目的変数の個別の関係")
+                def explain_individual_relationship(corr_value):
+                    abs_corr = abs(corr_value)
+                    if abs_corr >= 0.7:
+                        strength = "かなり強い関係"
+                    elif abs_corr >= 0.5:
+                        strength = "おそらく関係がある"
+                    elif abs_corr >= 0.3:
+                        strength = "関係がある可能性もある"
+                    elif abs_corr >= 0.1:
+                        strength = "あまり関係がない"
+                    else:
+                        strength = "全く関係がない"
+                    if corr_value > 0:
+                        direction = "正の相関"
+                    elif corr_value < 0:
+                        direction = "負の相関"
+                    else:
+                        direction = "相関なし"
+                    return f"{direction}、{strength}"
+
+                individual_explanations = []
+                for var in feature_vars:
+                    # 個々の説明変数と目的変数のPearson相関係数を算出
+                    corr_val = df[target_var].corr(df[var])
+                    exp_text = explain_individual_relationship(corr_val)
+                    individual_explanations.append({
+                        "変数": var,
+                        "相関係数": round(corr_val, 4),
+                        "解説": exp_text
+                    })
+                exp_df = pd.DataFrame(individual_explanations)
+                st.dataframe(exp_df)
+
+            # ------------------------------------------
+            # 回帰係数の表示
+            st.subheader("回帰係数")
+            coef_df = pd.DataFrame({
+                "変数": feature_vars,
+                "係数": model.coef_
+            })
+            st.dataframe(coef_df)
+            st.write(f"切片: **{model.intercept_:.4f}**")
+
+            # ------------------------------------------
+            # 予測結果の可視化：実測値 vs 予測値
+            st.subheader("予測結果の可視化")
+            fig, ax = plt.subplots()
+            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+            ax.set_xlabel("実測値")
+            ax.set_ylabel("予測値")
+            ax.set_title("実測値と予測値の比較")
+            st.pyplot(fig)
+            st.write("""
+**図の見方：**
+- **横軸：** 実際に観測された値（実測値）
+- **縦軸：** モデルが予測した値（予測値）
+- **赤い点線：** 理想的な一致（実測値＝予測値）のライン
+  
+点が赤い点線に近いほど、モデルの予測が正確であることを意味します。
+""")
+
+            # 説明変数が1つの場合の散布図と回帰直線の表示
+            if len(feature_vars) == 1:
+                st.subheader(f"{feature_vars[0]} と {target_var} の関係")
+                fig2, ax2 = plt.subplots()
+                sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
+                ax2.set_title("説明変数と目的変数の散布図と回帰直線")
+                st.pyplot(fig2)
+                st.write("""
+**図の見方：**
+- **横軸：** 説明変数の値
+- **縦軸：** 目的変数の値
+- **赤い直線：** データの傾向（回帰直線）
+  
+点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
+""")
+            else:
+                # 複数の説明変数がある場合、説明変数間の相関ヒートマップを表示
+                st.subheader("説明変数間の相関関係")
+                corr = df[feature_vars].corr()
+                fig3, ax3 = plt.subplots()
+                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3)
+                ax3.set_title("各説明変数間の相関ヒートマップ")
+                st.pyplot(fig3)
+                st.write("""
+**図の見方：**
+- 数字は各変数間のPearsonの相関係数を示しています。
+- **1に近い：** 非常に強い正の相関（両方の値が共に増加する傾向）
+- **-1に近い：** 非常に強い負の相関（片方の値が増加すると、もう片方が減少する傾向）
+- **0に近い：** 相関がほとんどない
+  
+色が濃いほど、変数間の関係が強いことを意味します。
+""")
