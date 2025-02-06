@@ -1,8 +1,6 @@
 streamlit
 pandas
 numpy
+scikit-learn
 matplotlib
-openpyxl
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
+seaborn
