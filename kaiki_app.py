@@ -103,7 +103,8 @@ if uploaded_file is not None:
             r2 = r2_score(y, y_pred)
 
             st.subheader("モデル評価")
-            st.write(f"平均二乗誤差 (MSE): **{mse:.4f}**")
+            st.write(f"平均二乗誤差 (MSE): **{mse:.4f}**")aaaaaaaaaaaaaa
+            
             st.write(f"決定係数 (R²): **{r2:.4f}**")
 
             # ------------------------------------------
