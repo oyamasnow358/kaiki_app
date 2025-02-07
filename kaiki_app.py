@@ -70,8 +70,10 @@ if uploaded_file is not None:
         st.error("データに2列以上の変数が必要です。")
         st.stop()
 
-    # 修正済み: 目的変数の選択を明示化し、説明変数から除外
+    # 目的変数（Y）の選択肢は、最初の列をデフォルト選択
     target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
+
+    # 説明変数（X）の選択肢は、目的変数（Y）を除外
     feature_vars = st.sidebar.multiselect(
         "説明変数（X）を選択（複数選択可）",
         [col for col in all_columns if col != target_var]
@@ -79,6 +81,7 @@ if uploaded_file is not None:
 
     if not feature_vars:
         st.warning("説明変数を選択してください。")
+
     else:
         if st.sidebar.button("回帰分析を実行"):
             # ----------------------------------
