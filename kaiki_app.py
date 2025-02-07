@@ -209,13 +209,13 @@ st.write("""
 """)
 
             # 説明変数が1つの場合の散布図と回帰直線の表示
-            if len(feature_vars) == 1:
-                st.subheader(f"{feature_vars[0]} と {target_var} の関係")
-                fig2, ax2 = plt.subplots()
-                sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
-                ax2.set_title("説明変数と目的変数の散布図と回帰直線")
-                st.pyplot(fig2)
-                st.write("""
+if len(feature_vars) == 1:
+    st.subheader(f"{feature_vars[0]} と {target_var} の関係")
+    fig2, ax2 = plt.subplots()
+    sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
+    ax2.set_title("説明変数と目的変数の散布図と回帰直線")
+    st.pyplot(fig2)
+    st.write("""
 **図の見方：**
 - **横軸：** 説明変数の値
 - **縦軸：** 目的変数の値
@@ -223,7 +223,8 @@ st.write("""
   
 点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
 """)
-            else:
+
+else:
                 # 複数の説明変数がある場合、説明変数間の相関ヒートマップを表示
                 st.subheader("説明変数間の相関関係")
                 corr = df[feature_vars].corr()
