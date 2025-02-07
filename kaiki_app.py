@@ -45,7 +45,7 @@ st.write("""
 1. サイドバーから、上記テンプレートに沿った形式のCSVファイルをアップロードしてください。  
 2. アップロード後、**目的変数（Y）**と**説明変数（X）**を選択します。  
 3. 「回帰分析を実行」ボタンを押すと、モデルの係数や評価指標、可視化グラフが表示されます。  
-※ CSVファイルの最初の3行は説明文として扱われるため、**ヘッダー行は4行目**に記載してください。
+※ CSVファイルの最初の8行は説明文として扱われるため、**ヘッダー行は9行目**に記載してください。
 """)
 
 # ------------------------------------------
@@ -56,7 +56,7 @@ uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード�
 if uploaded_file is not None:
     try:
         # ヘッダーが4行目にあるので、skiprows=3として読み込む（エンコーディングはutf-8-sig）
-        df = pd.read_csv(uploaded_file, skiprows=10, encoding='utf-8-sig')
+        df = pd.read_csv(uploaded_file, skiprows=8, encoding='utf-8-sig')
         st.write("### アップロードされたデータ（一部）")
         st.dataframe(df.head())
     except Exception as e:
