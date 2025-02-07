@@ -72,9 +72,10 @@ if uploaded_file is not None:
 
     # 修正済み: 目的変数の選択を明示化し、説明変数から除外
     target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
+    available_features = [col for col in all_columns if col != target_var]
     feature_vars = st.sidebar.multiselect(
         "説明変数（X）を選択（複数選択可）",
-        [col for col in all_columns if col != target_var]
+        available_features
     )
 
     if not feature_vars:
