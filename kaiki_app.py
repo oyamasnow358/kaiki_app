@@ -70,8 +70,11 @@ if uploaded_file is not None:
         st.error("データに2列以上の変数が必要です。")
         st.stop()
 
-    # 目的変数（Y）の選択肢は、最初の列をデフォルト選択
-    target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
+    # "目的変数" という列があればそれを選択、なければ最初の列をデフォルトにする
+    default_target_var = "目的変数" if "目的変数" in all_columns else all_columns[0]
+
+    # 目的変数の選択
+    target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns, index=all_columns.index(default_target_var))
 
     # 説明変数（X）の選択肢は、目的変数（Y）を除外
     feature_vars = st.sidebar.multiselect(
