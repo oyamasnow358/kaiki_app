@@ -130,46 +130,52 @@ if uploaded_file is not None:
 
             # ------------------------------------------
             # 複数の説明変数がある場合、各変数ごとの目的変数との相関関係と解説を表示する
-            if len(feature_vars) > 1:
-                st.subheader("各説明変数と目的変数の個別の関係")
-                def explain_individual_relationship(corr_value):
-                    abs_corr = abs(corr_value)
-                    if abs_corr >= 0.7:
-                        strength = "かなり強い関係"
-                    elif abs_corr >= 0.5:
-                        strength = "おそらく関係がある"
-                    elif abs_corr >= 0.3:
-                        strength = "関係がある可能性もある"
-                    elif abs_corr >= 0.1:
-                        strength = "あまり関係がない"
-                    else:
-                        strength = "全く関係がない"
-                    if corr_value > 0:
-                        direction = "正の相関"
-                    elif corr_value < 0:
-                        direction = "負の相関"
-                    else:
-                        direction = "相関なし"
-                    return f"{direction}、{strength}"
+           # ---（コード冒頭部分はそのまま）---
 
-                # 説明変数の選択時に目的変数を除外
-feature_vars = [var for var in feature_vars if var != target_var]
+# ------------------------------------------
+# 各説明変数と目的変数の個別の関係
+if len(feature_vars) > 1:
+    st.subheader("各説明変数と目的変数の個別の関係")
 
-# 各説明変数と目的変数の相関を計算
-individual_explanations = []
-for var in feature_vars:
-    corr_val = df[target_var].corr(df[var])  # 相関を計算
-    exp_text = explain_individual_relationship(corr_val)  # 解説を生成
-    individual_explanations.append({
-        "変数": var,
-        "相関係数": round(corr_val, 4),
-        "解説": exp_text
-    })
+    def explain_individual_relationship(corr_value):
+        abs_corr = abs(corr_value)
+        if abs_corr >= 0.7:
+            strength = "かなり強い関係"
+        elif abs_corr >= 0.5:
+            strength = "おそらく関係がある"
+        elif abs_corr >= 0.3:
+            strength = "関係がある可能性もある"
+        elif abs_corr >= 0.1:
+            strength = "あまり関係がない"
+        else:
+            strength = "全く関係がない"
+        if corr_value > 0:
+            direction = "正の相関"
+        elif corr_value < 0:
+            direction = "負の相関"
+        else:
+            direction = "相関なし"
+        return f"{direction}、{strength}"
 
-# 結果を表示
-exp_df = pd.DataFrame(individual_explanations)
-st.dataframe(exp_df)
+    # 説明変数の選択時に目的変数を除外
+    feature_vars = [var for var in feature_vars if var != target_var]
 
+    # 各説明変数と目的変数の相関を計算
+    individual_explanations = []
+    for var in feature_vars:
+        corr_val = df[target_var].corr(df[var])  # 相関を計算
+        exp_text = explain_individual_relationship(corr_val)  # 解説を生成
+        individual_explanations.append({
+            "変数": var,
+            "相関係数": round(corr_val, 4),
+            "解説": exp_text
+        })
+
+    # 結果を表示
+    exp_df = pd.DataFrame(individual_explanations)
+    st.dataframe(exp_df)
+
+# ------------------------------------------
 # 回帰係数の表示
 if hasattr(model, "coef_"):  # 回帰モデルが正しくトレーニングされている場合のみ表示
     coef_df = pd.DataFrame({
@@ -181,18 +187,19 @@ if hasattr(model, "coef_"):  # 回帰モデルが正しくトレーニングさ�
 else:
     st.error("回帰モデルがトレーニングされていません。データやコードを確認してください。")
 
+# ------------------------------------------
+# 予測結果の可視化：実測値 vs 予測値
+st.subheader("予測結果の可視化")
+fig, ax = plt.subplots()
+ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+ax.set_xlabel("実測値")
+ax.set_ylabel("予測値")
+ax.set_title("実測値と予測値の比較")
+st.pyplot(fig)
 
-            # ------------------------------------------
-            # 予測結果の可視化：実測値 vs 予測値
-            st.subheader("予測結果の可視化")
-            fig, ax = plt.subplots()
-            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
-            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-            ax.set_xlabel("実測値")
-            ax.set_ylabel("予測値")
-            ax.set_title("実測値と予測値の比較")
-            st.pyplot(fig)
-            st.write("""
+# ---（コード後半部分も同様に調整）---
+st.write("""
 **図の見方：**
 - **横軸：** 実際に観測された値（実測値）
 - **縦軸：** モデルが予測した値（予測値）
