@@ -5,7 +5,6 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
-import io
 
 # ------------------------------------------
 # CSVテンプレート作成用の文字列
@@ -71,6 +70,7 @@ if uploaded_file is not None:
         st.error("データに2列以上の変数が必要です。")
         st.stop()
 
+    # 修正済み: 目的変数の選択を明示化し、説明変数から除外
     target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
     feature_vars = st.sidebar.multiselect(
         "説明変数（X）を選択（複数選択可）",
@@ -151,28 +151,26 @@ if uploaded_file is not None:
                 exp_df = pd.DataFrame(individual_explanations)
                 st.dataframe(exp_df)
 
-
-
             # ------------------------------------------
             # 回帰係数の表示
-        st.subheader("回帰係数")
-        coef_df = pd.DataFrame({
-                "変数": feature_vars,
-                "係数": model.coef_
-            })
-        st.dataframe(coef_df)
-        st.write(f"切片: **{model.intercept_:.4f}**")
+            st.subheader("回帰係数")
+            coef_df = pd.DataFrame({
+                    "変数": feature_vars,
+                    "係数": model.coef_
+                })
+            st.dataframe(coef_df)
+            st.write(f"切片: **{model.intercept_:.4f}**")
 
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
-        st.subheader("予測結果可視化")
-        fig, ax = plt.subplots()
-        ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
-        ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-        ax.set_xlabel("実測値")
-        ax.set_ylabel("予測値")
-        st.pyplot(fig)
-        st.write("""
+            st.subheader("予測結果可視化")
+            fig, ax = plt.subplots()
+            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+            ax.set_xlabel("実測値")
+            ax.set_ylabel("予測値")
+            st.pyplot(fig)
+            st.write("""
 **図の見方：**
 - **横軸：** 実際に観測された値（実測値）
 - **縦軸：** モデルが予測した値（予測値）
@@ -182,7 +180,7 @@ if uploaded_file is not None:
 """)
 
             # 説明変数が1つの場合の散布図と回帰直線の表示
-    if len(feature_vars) == 1:
+            if len(feature_vars) == 1:
                 st.subheader(f"{feature_vars[0]} と {target_var} の関係")
                 fig2, ax2 = plt.subplots()
                 sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
@@ -195,7 +193,7 @@ if uploaded_file is not None:
   
 点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
 """)
-    else:
+            else:
                 st.subheader("説明変数間の相関")
                 corr = df[feature_vars].corr()
                 fig3, ax3 = plt.subplots()
