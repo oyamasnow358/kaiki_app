@@ -127,43 +127,47 @@ if uploaded_file is not None:
             explanation_text = explain_relationship(r2)
             st.markdown("**【統計解説】**")
             st.write(explanation_text)
-
+            # 説明変数と目的変数の欠損値を事前に補完
+            X = X.fillna(X.mean())
+            y = y.fillna(y.mean())
             # ------------------------------------------
             # 複数の説明変数がある場合、各変数ごとの目的変数との相関関係と解説を表示する
+                               
             if len(feature_vars) > 1:
-                st.subheader("各説明変数と目的変数の個別の関係")
-                def explain_individual_relationship(corr_value):
-                    abs_corr = abs(corr_value)
-                    if abs_corr >= 0.7:
-                        strength = "かなり強い関係"
-                    elif abs_corr >= 0.5:
-                        strength = "おそらく関係がある"
-                    elif abs_corr >= 0.3:
-                        strength = "関係がある可能性もある"
-                    elif abs_corr >= 0.1:
-                        strength = "あまり関係がない"
-                    else:
-                        strength = "全く関係がない"
-                    if corr_value > 0:
-                        direction = "正の相関"
-                    elif corr_value < 0:
-                        direction = "負の相関"
-                    else:
-                        direction = "相関なし"
-                    return f"{direction}、{strength}"
+            st.subheader("各説明変数と目的変数の個別の関係")
 
-                individual_explanations = []
-                for var in feature_vars:
-                    # 個々の説明変数と目的変数のPearson相関係数を算出
-                    corr_val = df[target_var].corr(df[var])
-                    exp_text = explain_individual_relationship(corr_val)
-                    individual_explanations.append({
-                        "変数": var,
-                        "相関係数": round(corr_val, 4),
-                        "解説": exp_text
-                    })
-                exp_df = pd.DataFrame(individual_explanations)
-                st.dataframe(exp_df)
+            def explain_individual_relationship(corr_value):
+                abs_corr = abs(corr_value)
+            if abs_corr >= 0.7:
+                strength = "かなり強い関係"
+            elif abs_corr >= 0.5:
+                strength = "おそらく関係がある"
+            elif abs_corr >= 0.3:
+                strength = "関係がある可能性もある"
+            elif abs_corr >= 0.1:
+                strength = "あまり関係がない"
+            else:
+                strength = "全く関係がない"
+            if corr_value > 0:
+                direction = "正の相関"
+            elif corr_value < 0:
+                direction = "負の相関"
+            else:
+                direction = "相関なし"
+            return f"{direction}、{strength}"
+
+        individual_explanations = []
+        for var in feature_vars:
+            # 欠損値補完後のデータを用いて相関を計算
+            corr_val = y.corr(X[var])
+            exp_text = explain_individual_relationship(corr_val)
+            individual_explanations.append({
+                "変数": var,
+                "相関係数": round(corr_val, 4),
+                "解説": exp_text
+            })
+        exp_df = pd.DataFrame(individual_explanations)
+        st.dataframe(exp_df)
 
             # ------------------------------------------
             # 回帰係数の表示
