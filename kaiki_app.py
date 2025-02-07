@@ -166,12 +166,12 @@ if uploaded_file is not None:
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
         st.subheader("予測結果可視化")
-            fig, ax = plt.subplots()
-            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
-            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-            ax.set_xlabel("実測値")
-            ax.set_ylabel("予測値")
-            st.pyplot(fig)
+        fig, ax = plt.subplots()
+        ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+        ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+        ax.set_xlabel("実測値")
+        ax.set_ylabel("予測値")
+        st.pyplot(fig)
         st.write("""
 **図の見方：**
 - **横軸：** 実際に観測された値（実測値）
@@ -182,7 +182,7 @@ if uploaded_file is not None:
 """)
 
             # 説明変数が1つの場合の散布図と回帰直線の表示
-         if len(feature_vars) == 1:
+    if len(feature_vars) == 1:
                 st.subheader(f"{feature_vars[0]} と {target_var} の関係")
                 fig2, ax2 = plt.subplots()
                 sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
@@ -195,7 +195,7 @@ if uploaded_file is not None:
   
 点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
 """)
-        else:
+    else:
                 st.subheader("説明変数間の相関")
                 corr = df[feature_vars].corr()
                 fig3, ax3 = plt.subplots()
