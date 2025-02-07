@@ -55,7 +55,7 @@ uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード",
 
 if uploaded_file is not None:
     try:
-        df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
+        df = pd.read_csv(uploaded_file, skiprows=8, encoding='utf-8-sig')
         st.write("### アップロードされたデータ")
         st.dataframe(df.head())
     except Exception as e:
