@@ -133,63 +133,67 @@ if uploaded_file is not None:
             # ------------------------------------------
             # 複数の説明変数がある場合、各変数ごとの目的変数との相関関係と解説を表示する
                                
-            if len(feature_vars) > 1:
-            st.subheader("各説明変数と目的変数の個別の関係")
+        if len(feature_vars) > 1:
+           st.subheader("各説明変数と目的変数の個別の関係")
 
-            def explain_individual_relationship(corr_value):
-                abs_corr = abs(corr_value)
-            if abs_corr >= 0.7:
-                strength = "かなり強い関係"
-            elif abs_corr >= 0.5:
-                strength = "おそらく関係がある"
-            elif abs_corr >= 0.3:
-                strength = "関係がある可能性もある"
-            elif abs_corr >= 0.1:
-                strength = "あまり関係がない"
-            else:
-                strength = "全く関係がない"
-            if corr_value > 0:
-                direction = "正の相関"
-            elif corr_value < 0:
-                direction = "負の相関"
-            else:
-                direction = "相関なし"
-            return f"{direction}、{strength}"
+           def explain_individual_relationship(corr_value):
+               abs_corr = abs(corr_value)
+               if abs_corr >= 0.7:
+                  strength = "かなり強い関係"
+               elif abs_corr >= 0.5:
+                  strength = "おそらく関係がある"
+               elif abs_corr >= 0.3:
+                  strength = "関係がある可能性もある"
+               elif abs_corr >= 0.1:
+                  strength = "あまり関係がない"
+               else:
+                  strength = "全く関係がない"
 
-        individual_explanations = []
-        for var in feature_vars:
-            # 欠損値補完後のデータを用いて相関を計算
-            corr_val = y.corr(X[var])
-            exp_text = explain_individual_relationship(corr_val)
-            individual_explanations.append({
-                "変数": var,
-                "相関係数": round(corr_val, 4),
-                "解説": exp_text
-            })
-        exp_df = pd.DataFrame(individual_explanations)
+               if corr_value > 0:
+                  direction = "正の相関"
+               elif corr_value < 0:
+                  direction = "負の相関"
+               else:
+                  direction = "相関なし"
+
+               return f"{direction}、{strength}"
+
+           individual_explanations = []
+           for var in feature_vars:
+        # 欠損値補完後のデータを用いて相関を計算
+               corr_val = y.corr(X[var])
+               exp_text = explain_individual_relationship(corr_val)
+               individual_explanations.append({
+                   "変数": var,
+                   "相関係数": round(corr_val, 4),
+                   "解説": exp_text
+               })
+
+               exp_df = pd.DataFrame(individual_explanations)
         st.dataframe(exp_df)
+
 
             # ------------------------------------------
             # 回帰係数の表示
-            st.subheader("回帰係数")
-            coef_df = pd.DataFrame({
+        st.subheader("回帰係数")
+        coef_df = pd.DataFrame({
                 "変数": feature_vars,
                 "係数": model.coef_
             })
-            st.dataframe(coef_df)
-            st.write(f"切片: **{model.intercept_:.4f}**")
+        st.dataframe(coef_df)
+        st.write(f"切片: **{model.intercept_:.4f}**")
 
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
-            st.subheader("予測結果の可視化")
-            fig, ax = plt.subplots()
-            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
-            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-            ax.set_xlabel("実測値")
-            ax.set_ylabel("予測値")
-            ax.set_title("実測値と予測値の比較")
-            st.pyplot(fig)
-            st.write("""
+        st.subheader("予測結果の可視化")
+        fig, ax = plt.subplots()
+        ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+        ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+        ax.set_xlabel("実測値")
+        ax.set_ylabel("予測値")
+        ax.set_title("実測値と予測値の比較")
+        st.pyplot(fig)
+        st.write("""
 **図の見方：**
 - **横軸：** 実際に観測された値（実測値）
 - **縦軸：** モデルが予測した値（予測値）
@@ -199,7 +203,7 @@ if uploaded_file is not None:
 """)
 
             # 説明変数が1つの場合の散布図と回帰直線の表示
-            if len(feature_vars) == 1:
+        if len(feature_vars) == 1:
                 st.subheader(f"{feature_vars[0]} と {target_var} の関係")
                 fig2, ax2 = plt.subplots()
                 sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
@@ -213,7 +217,7 @@ if uploaded_file is not None:
   
 点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
 """)
-            else:
+        else:
                 # 複数の説明変数がある場合、説明変数間の相関ヒートマップを表示
                 st.subheader("説明変数間の相関関係")
                 corr = df[feature_vars].corr()
