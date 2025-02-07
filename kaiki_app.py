@@ -55,7 +55,7 @@ uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード�
 
 if uploaded_file is not None:
     try:
-        # ヘッダーが4行目にあるので、skiprows=3として読み込む（エンコーディングはutf-8-sig）
+        # ヘッダーが9行目にあるので、skiprows=3として読み込む（エンコーディングはutf-8-sig）
         df = pd.read_csv(uploaded_file, skiprows=8, encoding='utf-8-sig')
         st.write("### アップロードされたデータ（一部）")
         st.dataframe(df.head())
@@ -152,28 +152,35 @@ if uploaded_file is not None:
                         direction = "相関なし"
                     return f"{direction}、{strength}"
 
-                individual_explanations = []
-                for var in feature_vars:
-                    # 個々の説明変数と目的変数のPearson相関係数を算出
-                    corr_val = df[target_var].corr(df[var])
-                    exp_text = explain_individual_relationship(corr_val)
-                    individual_explanations.append({
-                        "変数": var,
-                        "相関係数": round(corr_val, 4),
-                        "解説": exp_text
-                    })
-                exp_df = pd.DataFrame(individual_explanations)
-                st.dataframe(exp_df)
+                # 説明変数の選択時に目的変数を除外
+feature_vars = [var for var in feature_vars if var != target_var]
 
-            # ------------------------------------------
-            # 回帰係数の表示
-            st.subheader("回帰係数")
-            coef_df = pd.DataFrame({
-                "変数": feature_vars,
-                "係数": model.coef_
-            })
-            st.dataframe(coef_df)
-            st.write(f"切片: **{model.intercept_:.4f}**")
+# 各説明変数と目的変数の相関を計算
+individual_explanations = []
+for var in feature_vars:
+    corr_val = df[target_var].corr(df[var])  # 相関を計算
+    exp_text = explain_individual_relationship(corr_val)  # 解説を生成
+    individual_explanations.append({
+        "変数": var,
+        "相関係数": round(corr_val, 4),
+        "解説": exp_text
+    })
+
+# 結果を表示
+exp_df = pd.DataFrame(individual_explanations)
+st.dataframe(exp_df)
+
+# 回帰係数の表示
+if hasattr(model, "coef_"):  # 回帰モデルが正しくトレーニングされている場合のみ表示
+    coef_df = pd.DataFrame({
+        "変数": feature_vars,
+        "係数": model.coef_
+    })
+    st.dataframe(coef_df)
+    st.write(f"切片: **{model.intercept_:.4f}**")
+else:
+    st.error("回帰モデルがトレーニングされていません。データやコードを確認してください。")
+
 
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
