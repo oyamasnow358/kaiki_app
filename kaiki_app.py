@@ -51,22 +51,25 @@ st.write("""
 # ------------------------------------------
 # CSVファイルアップロードとデータ読み込み
 st.sidebar.header("1. データのアップロード")
-uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード（ヘッダーは4行目）", type=["csv"])
+uploaded_file = st.sidebar.file_uploader("CSVファイルをアップロード", type=["csv"])
 
 if uploaded_file is not None:
     try:
-        # ヘッダーが9行目にあるので、skiprows=3として読み込む（エンコーディングはutf-8-sig）
-        df = pd.read_csv(uploaded_file, skiprows=8, encoding='utf-8-sig')
-        st.write("### アップロードされたデータ（一部）")
+        df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
+        st.write("### アップロードされたデータ")
         st.dataframe(df.head())
     except Exception as e:
         st.error(f"ファイル読み込みエラー: {e}")
         st.stop()
 
-    # ------------------------------------------
-    # 変数の選択（サイドバー）
+    # --------------------------------------
+    # 変数選択
     st.sidebar.header("2. 変数の選択")
     all_columns = df.columns.tolist()
+
+    if len(all_columns) < 2:
+        st.error("データに2列以上の変数が必要です。")
+        st.stop()
 
     target_var = st.sidebar.selectbox("目的変数（Y）を選択", all_columns)
     feature_vars = st.sidebar.multiselect(
@@ -75,102 +78,79 @@ if uploaded_file is not None:
     )
 
     if not feature_vars:
-        st.warning("説明変数（X）を少なくとも1つ選択してください。")
+        st.warning("説明変数を選択してください。")
     else:
         if st.sidebar.button("回帰分析を実行"):
-            # ------------------------------------------
+            # ----------------------------------
             # データ抽出と前処理
             X = df[feature_vars]
             y = df[target_var]
+            X = X.fillna(X.mean())
+            y = y.fillna(y.mean())
 
-            # 欠損値の処理（平均値補完）
-            if X.isnull().any().any() or y.isnull().any():
-                st.warning("欠損値が検出されたため、平均値で補完します。")
-                X = X.fillna(X.mean())
-                y = y.fillna(y.mean())
-
-            # ------------------------------------------
-            # 線形回帰モデルの構築
+            # ----------------------------------
+            # 線形回帰モデル
             model = LinearRegression()
             model.fit(X, y)
-
-            # 予測値の算出
             y_pred = model.predict(X)
 
-            # 評価指標の算出
+            # モデル評価
             mse = mean_squared_error(y, y_pred)
             r2 = r2_score(y, y_pred)
-
             st.subheader("モデル評価")
             st.write(f"平均二乗誤差 (MSE): **{mse:.4f}**")
             st.write(f"決定係数 (R²): **{r2:.4f}**")
 
-            # ------------------------------------------
-            # 統計初心者向けの全体の解説を返す関数
+            # ----------------------------------
+            # 統計解説
             def explain_relationship(r2_value):
                 if r2_value >= 0.7:
-                    explanation = ("この結果は、説明変数と目的変数の間に**かなり強い関係**があることを示しています。")
+                    return "かなり強い関係があります。"
                 elif r2_value >= 0.5:
-                    explanation = ("この結果は、説明変数と目的変数の間に**おそらく関係**があることを示唆しています。\n"
-                                   "また、関係性がある可能性は高いですが、他の要因も影響している可能性があります。")
+                    return "おそらく関係があることを示しています。"
                 elif r2_value >= 0.3:
-                    explanation = ("この結果は、説明変数と目的変数の間に**関係がある可能性もある**ことを示していますが、"
-                                   "その関係はそこまで明確ではなく、予測精度は低めです。")
+                    return "関係がある可能性もあります。"
                 elif r2_value >= 0.1:
-                    explanation = ("この結果は、説明変数と目的変数の間に**あまり関係がない**ことを示しています。\n"
-                                   "関係は限定的で、他の要因が大きく影響している可能性があります。")
+                    return "あまり関係がないことを示しています。"
                 else:
-                    explanation = ("この結果は、説明変数と目的変数の間に**全く関係がない**、または非常に弱い関係しかないことを示しています。")
-                return explanation
+                    return "ほとんど関係がないことを示しています。"
 
-            # 統計解説の表示（全体の結果）
             explanation_text = explain_relationship(r2)
             st.markdown("**【統計解説】**")
             st.write(explanation_text)
-            # 説明変数と目的変数の欠損値を事前に補完
-            X = X.fillna(X.mean())
-            y = y.fillna(y.mean())
-            # ------------------------------------------
-            # 複数の説明変数がある場合、各変数ごとの目的変数との相関関係と解説を表示する
-                               
-        if len(feature_vars) > 1:
-           st.subheader("各説明変数と目的変数の個別の関係")
 
-           def explain_individual_relationship(corr_value):
-               abs_corr = abs(corr_value)
-               if abs_corr >= 0.7:
-                  strength = "かなり強い関係"
-               elif abs_corr >= 0.5:
-                  strength = "おそらく関係がある"
-               elif abs_corr >= 0.3:
-                  strength = "関係がある可能性もある"
-               elif abs_corr >= 0.1:
-                  strength = "あまり関係がない"
-               else:
-                  strength = "全く関係がない"
+            # ----------------------------------
+            # 各説明変数と目的変数の相関関係
+            if len(feature_vars) > 1:
+                st.subheader("各説明変数と目的変数の関係")
 
-               if corr_value > 0:
-                  direction = "正の相関"
-               elif corr_value < 0:
-                  direction = "負の相関"
-               else:
-                  direction = "相関なし"
+                def explain_individual_relationship(corr_value):
+                    abs_corr = abs(corr_value)
+                    if abs_corr >= 0.7:
+                        strength = "かなり強い関係"
+                    elif abs_corr >= 0.5:
+                        strength = "おそらく関係がある"
+                    elif abs_corr >= 0.3:
+                        strength = "関係がある可能性もある"
+                    elif abs_corr >= 0.1:
+                        strength = "あまり関係がない"
+                    else:
+                        strength = "ほとんど関係がない"
+                    direction = "正の相関" if corr_value > 0 else "負の相関" if corr_value < 0 else "相関なし"
+                    return f"{direction}、{strength}"
 
-               return f"{direction}、{strength}"
+                individual_explanations = []
+                for var in feature_vars:
+                    corr_val = y.corr(X[var])
+                    exp_text = explain_individual_relationship(corr_val)
+                    individual_explanations.append({
+                        "変数": var,
+                        "相関係数": round(corr_val, 4),
+                        "解説": exp_text
+                    })
+                exp_df = pd.DataFrame(individual_explanations)
+                st.dataframe(exp_df)
 
-           individual_explanations = []
-           for var in feature_vars:
-        # 欠損値補完後のデータを用いて相関を計算
-               corr_val = y.corr(X[var])
-               exp_text = explain_individual_relationship(corr_val)
-               individual_explanations.append({
-                   "変数": var,
-                   "相関係数": round(corr_val, 4),
-                   "解説": exp_text
-               })
-
-               exp_df = pd.DataFrame(individual_explanations)
-        st.dataframe(exp_df)
 
 
             # ------------------------------------------
@@ -185,14 +165,13 @@ if uploaded_file is not None:
 
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
-        st.subheader("予測結果の可視化")
-        fig, ax = plt.subplots()
-        ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
-        ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-        ax.set_xlabel("実測値")
-        ax.set_ylabel("予測値")
-        ax.set_title("実測値と予測値の比較")
-        st.pyplot(fig)
+        st.subheader("予測結果可視化")
+            fig, ax = plt.subplots()
+            ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
+            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+            ax.set_xlabel("実測値")
+            ax.set_ylabel("予測値")
+            st.pyplot(fig)
         st.write("""
 **図の見方：**
 - **横軸：** 実際に観測された値（実測値）
@@ -203,11 +182,10 @@ if uploaded_file is not None:
 """)
 
             # 説明変数が1つの場合の散布図と回帰直線の表示
-        if len(feature_vars) == 1:
+         if len(feature_vars) == 1:
                 st.subheader(f"{feature_vars[0]} と {target_var} の関係")
                 fig2, ax2 = plt.subplots()
                 sns.regplot(x=feature_vars[0], y=target_var, data=df, ax=ax2, line_kws={"color": "red"})
-                ax2.set_title("説明変数と目的変数の散布図と回帰直線")
                 st.pyplot(fig2)
                 st.write("""
 **図の見方：**
@@ -218,12 +196,10 @@ if uploaded_file is not None:
 点が直線に沿って分布していれば、説明変数と目的変数との関係が強いと考えられます。
 """)
         else:
-                # 複数の説明変数がある場合、説明変数間の相関ヒートマップを表示
-                st.subheader("説明変数間の相関関係")
+                st.subheader("説明変数間の相関")
                 corr = df[feature_vars].corr()
                 fig3, ax3 = plt.subplots()
                 sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3)
-                ax3.set_title("各説明変数間の相関ヒートマップ")
                 st.pyplot(fig3)
                 st.write("""
 **図の見方：**
