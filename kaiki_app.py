@@ -195,15 +195,6 @@ if uploaded_file is not None:
                 fig3, ax3 = plt.subplots()
                 sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
                 st.pyplot(fig3)
-               # 相関係数の解釈
-                st.write("**相関係数の解釈**")
-                for i in range(len(corr)):
-                    for j in range(i + 1, len(corr.columns)):
-                       col1, col2 = corr.columns[i], corr.columns[j]
-                       corr_value = corr.iloc[i, j]
-                       st.write(f"{col1} と {col2} の相関係数: **{corr_value:.2f}** → {explain_relationship(abs(corr_value))}")
-
-                st.pyplot(fig3)
                 st.write("""
 **図の見方：**
 - 数字は各変数間のPearsonの相関係数を示しています。
