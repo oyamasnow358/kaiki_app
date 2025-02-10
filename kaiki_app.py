@@ -21,13 +21,13 @@ else:
 
 # 相関関係の解釈関数
 def explain_relationship(corr_value):
-    if corr_value >= 0.7:
+    if corr_value >= 0.7 and corr_value <= -0.7 :
         return "かなり強い関係"
-    elif corr_value >= 0.5:
+    elif corr_value >= 0.5 and corr_value <= -0.5:
         return "おそらく関係がある"
-    elif corr_value >= 0.3:
+    elif corr_value >= 0.3 and corr_value <= -0.3:
         return "関係がある可能性がある"
-    elif corr_value >= 0.1:
+    elif corr_value >= 0.1 and corr_value <= -0.1:
         return "あまり関係がない"
     else:
         return "ほとんど関係がない"
@@ -135,19 +135,18 @@ if uploaded_file is not None:
 
             # ----------------------------------
             
-            # # 回帰係数と目的変数との相関
+            # 回帰係数と目的変数との相関
             st.subheader("回帰係数と目的変数との相関")
             coef_df = pd.DataFrame({
-                "変数": feature_vars,
-                "回帰係数": model.coef_.astype(float).round(4),
-                "目的変数との相関係数": [df[[col, target_var]].corr().iloc[0, 1].round(4) for col in feature_vars]
+            "変数": feature_vars,
+            "回帰係数": model.coef_.astype(float).round(4),
+            "目的変数との相関係数": [df[[col, target_var]].corr().iloc[0, 1].round(4) for col in feature_vars]
             })
             coef_df["相関の解釈"] = coef_df["目的変数との相関係数"].apply(explain_relationship)
-            st.dataframe(coef_df)
-            st.write(f"切片: **{model.intercept_:.4f}**")
 
             st.dataframe(coef_df)
             st.write(f"切片: **{model.intercept_:.4f}**")
+
 
             # ------------------------------------------
             # 予測結果の可視化：実測値 vs 予測値
