@@ -19,6 +19,18 @@ if os.path.exists(font_path):
 else:
     st.error("❌ フォントファイルが見つかりません。")
 
+# 相関関係の解釈関数
+def explain_relationship(corr_value):
+    if corr_value >= 0.7:
+        return "かなり強い関係"
+    elif corr_value >= 0.5:
+        return "おそらく関係がある"
+    elif corr_value >= 0.3:
+        return "関係がある可能性がある"
+    elif corr_value >= 0.1:
+        return "あまり関係がない"
+    else:
+        return "ほとんど関係がない"
 
 # ------------------------------------------
 # CSVテンプレート作成用の文字列
@@ -123,22 +135,16 @@ if uploaded_file is not None:
 
             # ----------------------------------
             
-            # 回帰係数の表示と目的変数との相関係数
+            # # 回帰係数と目的変数との相関
             st.subheader("回帰係数と目的変数との相関")
             coef_df = pd.DataFrame({
-                 "変数": feature_vars,
-                 "回帰係数": model.coef_.astype(float).round(4),  # 小数点以下4桁で表示
-                 "目的変数との相関係数": [df[[col, target_var]].corr().iloc[0, 1].round(4) for col in feature_vars]
+                "変数": feature_vars,
+                "回帰係数": model.coef_.astype(float).round(4),
+                "目的変数との相関係数": [df[[col, target_var]].corr().iloc[0, 1].round(4) for col in feature_vars]
             })
-
-# 相関係数の解釈を追加
-            coef_df["相関の解釈"] = coef_df["目的変数との相関係数"].apply(
-              lambda r: "かなり強い関係" if abs(r) >= 0.7 else 
-                        "おそらく関係がある" if abs(r) >= 0.5 else 
-                        "関係がある可能性がある" if abs(r) >= 0.3 else 
-                        "あまり関係がない" if abs(r) >= 0.1 else 
-                        "ほとんど関係がない"
-             )
+            coef_df["相関の解釈"] = coef_df["目的変数との相関係数"].apply(explain_relationship)
+            st.dataframe(coef_df)
+            st.write(f"切片: **{model.intercept_:.4f}**")
 
             st.dataframe(coef_df)
             st.write(f"切片: **{model.intercept_:.4f}**")
