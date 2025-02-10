@@ -5,6 +5,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os  # osモジュールのインポートを追加
+import matplotlib.font_manager as fm
+import matplotlib as mpl
 
 # フォント設定
 font_path = os.path.abspath("ipaexg.ttf")  # 絶対パス
@@ -15,6 +18,7 @@ if os.path.exists(font_path):
     st.write(f"✅ フォント設定: {mpl.rcParams['font.family']}")
 else:
     st.error("❌ フォントファイルが見つかりません。")
+
 
 # ------------------------------------------
 # CSVテンプレート作成用の文字列
