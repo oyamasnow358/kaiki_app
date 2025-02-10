@@ -6,6 +6,16 @@ from sklearn.metrics import mean_squared_error, r2_score
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# フォント設定
+font_path = os.path.abspath("ipaexg.ttf")  # 絶対パス
+if os.path.exists(font_path):
+    font_prop = fm.FontProperties(fname=font_path)
+    mpl.rcParams["font.family"] = font_prop.get_name()
+    plt.rc("font", family=font_prop.get_name())  # 追加
+    st.write(f"✅ フォント設定: {mpl.rcParams['font.family']}")
+else:
+    st.error("❌ フォントファイルが見つかりません。")
+
 # ------------------------------------------
 # CSVテンプレート作成用の文字列
 template_csv = """このCSVファイルは、回帰分析用のデータひな形です。
@@ -108,8 +118,19 @@ if uploaded_file is not None:
             st.write(f"決定係数 (R²): **{r2:.4f}**")
 
             # ----------------------------------
-           
-
+            # 決定係数の解釈関数
+            def explain_relationship(r2_value):
+               if r2_value >= 0.7:
+                return "かなり強い関係があります。"
+               elif r2_value >= 0.5:
+                return "おそらく関係があることを示しています。"
+               elif r2_value >= 0.3:
+                return "関係がある可能性もあります。"
+               elif r2_value >= 0.1:
+                return "あまり関係がないことを示しています。"
+               else:
+                return "ほとんど関係がないことを示しています。"
+            st.write(f"R² の説明: **{explain_relationship(r2)}**")
             # ------------------------------------------
             # 回帰係数の表示
             st.subheader("回帰係数")
@@ -126,8 +147,8 @@ if uploaded_file is not None:
             fig, ax = plt.subplots()
             ax.scatter(y, y_pred, alpha=0.7, edgecolors="b")
             ax.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-            ax.set_xlabel("実測値")
-            ax.set_ylabel("予測値")
+            ax.set_xlabel("実測値", fontproperties=font_prop)  # ← 日本語フォント適用
+            ax.set_ylabel("予測値", fontproperties=font_prop)
             st.pyplot(fig)
             st.write("""
 **図の見方：**
