@@ -137,11 +137,23 @@ if uploaded_file is not None:
             st.write(f"R² の説明: **{explain_relationship(r2)}**")
             # ------------------------------------------
             # 回帰係数の表示
-            st.subheader("回帰係数")
+            # 回帰係数の表示と目的変数との相関係数
+            st.subheader("回帰係数と目的変数との相関")
             coef_df = pd.DataFrame({
-             "変数": feature_vars,
-             "係数": model.coef_.astype(float).round(4)  # 小数点以下4桁で表示
+                 "変数": feature_vars,
+                 "回帰係数": model.coef_.astype(float).round(4),  # 小数点以下4桁で表示
+                 "目的変数との相関係数": [df[[col, target_var]].corr().iloc[0, 1].round(4) for col in feature_vars]
             })
+
+# 相関係数の解釈を追加
+            coef_df["相関の解釈"] = coef_df["目的変数との相関係数"].apply(
+              lambda r: "かなり強い関係" if abs(r) >= 0.7 else 
+                        "おそらく関係がある" if abs(r) >= 0.5 else 
+                        "関係がある可能性がある" if abs(r) >= 0.3 else 
+                        "あまり関係がない" if abs(r) >= 0.1 else 
+                        "ほとんど関係がない"
+             )
+
             st.dataframe(coef_df)
             st.write(f"切片: **{model.intercept_:.4f}**")
 
@@ -190,7 +202,7 @@ if uploaded_file is not None:
     # 相関行列をヒートマップとして描画
                 fig3, ax3 = plt.subplots()
                 sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
-
+                st.pyplot(fig3)
                # 相関係数の解釈
                 st.write("**相関係数の解釈**")
                 for i in range(len(corr)):
