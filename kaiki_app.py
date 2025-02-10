@@ -122,21 +122,7 @@ if uploaded_file is not None:
             st.write(f"決定係数 (R²): **{r2:.4f}**")
 
             # ----------------------------------
-            # 決定係数の解釈関数
-            def explain_relationship(r2_value):
-               if r2_value >= 0.7:
-                return "かなり強い関係があります。"
-               elif r2_value >= 0.5:
-                return "おそらく関係があることを示しています。"
-               elif r2_value >= 0.3:
-                return "関係がある可能性もあります。"
-               elif r2_value >= 0.1:
-                return "あまり関係がないことを示しています。"
-               else:
-                return "ほとんど関係がないことを示しています。"
-            st.write(f"R² の説明: **{explain_relationship(r2)}**")
-            # ------------------------------------------
-            # 回帰係数の表示
+            
             # 回帰係数の表示と目的変数との相関係数
             st.subheader("回帰係数と目的変数との相関")
             coef_df = pd.DataFrame({
