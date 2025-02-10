@@ -179,9 +179,26 @@ if uploaded_file is not None:
 """)
             else:
                 st.subheader("説明変数間の相関")
+    
+    # 相関行列の作成
                 corr = df[feature_vars].corr()
+    
+    # カラム名を日本語化（説明変数名をリスト化）
+                corr.index = [f"説明変数{i+1}" for i in range(len(corr.index))]
+                corr.columns = [f"説明変数{i+1}" for i in range(len(corr.columns))]
+    
+    # 相関行列をヒートマップとして描画
                 fig3, ax3 = plt.subplots()
-                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3)
+                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
+
+               # 相関係数の解釈
+                st.write("**相関係数の解釈**")
+                for i in range(len(corr)):
+                    for j in range(i + 1, len(corr.columns)):
+                       col1, col2 = corr.columns[i], corr.columns[j]
+                       corr_value = corr.iloc[i, j]
+                       st.write(f"{col1} と {col2} の相関係数: **{corr_value:.2f}** → {explain_relationship(abs(corr_value))}")
+
                 st.pyplot(fig3)
                 st.write("""
 **図の見方：**
