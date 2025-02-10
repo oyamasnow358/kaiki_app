@@ -21,17 +21,16 @@ else:
 
 # 相関関係の解釈関数
 def explain_relationship(corr_value):
-    if corr_value >= 0.7 and corr_value <= -0.7 :
+    if abs(corr_value) >= 0.7:
         return "かなり強い関係"
-    elif corr_value >= 0.5 and corr_value <= -0.5:
+    elif abs(corr_value) >= 0.5:
         return "おそらく関係がある"
-    elif corr_value >= 0.3 and corr_value <= -0.3:
+    elif abs(corr_value) >= 0.3:
         return "関係がある可能性がある"
-    elif corr_value >= 0.1 and corr_value <= -0.1:
+    elif abs(corr_value) >= 0.1:
         return "あまり関係がない"
     else:
         return "ほとんど関係がない"
-
 # ------------------------------------------
 # CSVテンプレート作成用の文字列
 template_csv = """このCSVファイルは、回帰分析用のデータひな形です。
