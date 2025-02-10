@@ -189,14 +189,10 @@ if uploaded_file is not None:
                 corr.index = [f"説明変数{i+1}" for i in range(len(corr.index))]
                 corr.columns = [f"説明変数{i+1}" for i in range(len(corr.columns))]
     
-   # 相関行列をヒートマップとして描画
+    # 相関行列をヒートマップとして描画
                 fig3, ax3 = plt.subplots()
-                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5, cbar_kws={'label': '相関係数'})
-
-# フォントを適用
-                ax3.set_title("説明変数間の相関", fontproperties=font_prop)
-                ax3.set_xticklabels(ax3.get_xticklabels(), fontproperties=font_prop)
-                ax3.set_yticklabels(ax3.get_yticklabels(), fontproperties=font_prop)
+                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
+                st.pyplot(fig3)
                 st.write("""
 **図の見方：**
 - 数字は各変数間のPearsonの相関係数を示しています。
