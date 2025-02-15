@@ -46,6 +46,8 @@ template_csv = """このCSVファイルは、回帰分析用のデータひな�
 110,12,6,4,2,3
 105,11,5,2,2,3
 """
+st.title("回帰分析 WEB アプリ")
+
 # 初心者向け説明の表示切り替え
 if "show_explanation" not in st.session_state:
            st.session_state.show_explanation = False
@@ -114,7 +116,7 @@ if st.session_state.show_explanation:
            
 # ------------------------------------------
 # CSVテンプレートダウンロードボタンの設置
-st.title("回帰分析 WEB アプリ")
+
 st.markdown("### CSVテンプレートのダウンロード")
 st.write("""
 以下のボタンをクリックすると、各項目の説明が記載されたCSVファイルのひな形をダウンロードできます。  
