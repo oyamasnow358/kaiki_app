@@ -254,10 +254,14 @@ if uploaded_file is not None:
     # カラム名を日本語化（説明変数名をリスト化）
                 corr.index = [f"説明変数{i+1}" for i in range(len(corr.index))]
                 corr.columns = [f"説明変数{i+1}" for i in range(len(corr.columns))]
-    
+               
     # 相関行列をヒートマップとして描画
                 fig3, ax3 = plt.subplots()
                 sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
+                # 日本語フォントを適用
+                ax3.set_xlabel("説明変数", fontproperties=font_prop)
+                ax3.set_ylabel("説明変数", fontproperties=font_prop)
+
                 st.pyplot(fig3)
                 st.write("""
 **図の見方：**
