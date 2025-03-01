@@ -256,11 +256,16 @@ if uploaded_file is not None:
                 corr.columns = [f"説明変数{i+1}" for i in range(len(corr.columns))]
                
     # 相関行列をヒートマップとして描画
-                fig3, ax3 = plt.subplots()
+                fig3, ax3 = plt.subplots(figsize=(8, 6))
                 sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5)
-                # 日本語フォントを適用
-                ax3.set_xlabel("説明変数", fontproperties=font_prop)
-                ax3.set_ylabel("説明変数", fontproperties=font_prop)
+                
+                   # 軸ラベルの日本語設定
+                ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha='right', fontproperties=font_prop)
+                ax3.set_yticklabels(ax3.get_yticklabels(), fontproperties=font_prop)
+                
+                # 日本語フォントを適用失敗
+                #ax3.set_xlabel("説明変数", fontproperties=font_prop)
+                #ax3.set_ylabel("説明変数", fontproperties=font_prop)
 
                 st.pyplot(fig3)
                 st.write("""
