@@ -257,9 +257,9 @@ if uploaded_file is not None:
                
     # 相関行列をヒートマップとして描画
                 fig3, ax3 = plt.subplots(figsize=(8, 6))
-                sns.heatmap(corr, annot=True, cmap="coolwarm", ax=ax3, fmt=".2f", linewidths=0.5,ax=ax3)
-                
-                   # 軸ラベルの日本語設定
+                sns.heatmap(corr, annot=True, cmap="coolwarm", fmt=".2f", linewidths=0.5, ax=ax3)  # `ax=ax3` は1回だけ
+
+# 軸ラベルの日本語設定
                 ax3.set_xticklabels(ax3.get_xticklabels(), rotation=45, ha='right', fontproperties=font_prop)
                 ax3.set_yticklabels(ax3.get_yticklabels(), fontproperties=font_prop)
                 
