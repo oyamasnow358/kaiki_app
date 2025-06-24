@@ -20,21 +20,32 @@ st.set_page_config(
 
 # --- 2. フォント設定 ---
 
-# Matplotlibの日本語フォント設定を行う関数
+### 修正箇所 ###
+# Matplotlibの日本語フォント設定をより確実に行う関数に修正
 def setup_japanese_font():
     """
-    Matplotlibで日本語を表示するためのフォントを設定します。
+    Matplotlib/Seabornで日本語を表示するためのフォントを設定します。
     IPAexゴシックフォントファイル（ipaexg.ttf）が同じディレクトリにあることを想定しています。
     """
     font_path = "ipaexg.ttf"
+    
     if os.path.exists(font_path):
+        # Matplotlibのフォントマネージャーにフォントを追加
+        fm.fontManager.addfont(font_path)
         font_prop = fm.FontProperties(fname=font_path)
+        
+        # Matplotlibのデフォルト設定を変更
         plt.rcParams['font.family'] = font_prop.get_name()
-        # Seabornでもフォントが適用されるように設定
-        sns.set(font=font_prop.get_name())
+        # マイナス記号の文字化け対策
+        plt.rcParams['axes.unicode_minus'] = False
+        
+        # Seabornのスタイル設定にもフォントを適用
+        # これにより、Seabornが生成するグラフ全体で日本語フォントが使われるようになります。
+        sns.set_theme(style='whitegrid', font=font_prop.get_name())
     else:
-        # フォントファイルが見つからない場合、Streamlitの警告を表示
-        st.warning("⚠️ 日本語フォントファイル（ipaexg.ttf）が見つかりません。グラフの日本語が文字化けする可能性があります。")
+        # フォントファイルが見つからない場合、サイドバーに警告を表示
+        st.sidebar.warning("⚠️ 日本語フォントファイル（ipaexg.ttf）が見つかりません。グラフが文字化けします。")
+
 
 # --- 3. UIコンポーネント関数 ---
 
