@@ -3,243 +3,282 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import statsmodels.api as sm
+from sklearn.preprocessing import StandardScaler
 import io
 
 # --- 1. 初期設定 ---
 st.set_page_config(
-    page_title="因果・相関分析マスター",
-    page_icon="🔍",
+    page_title="重回帰・要因分析マスター",
+    page_icon="📊",
     layout="wide"
 )
 
-# --- 2. 計算ロジック ---
-
-def calculate_partial_correlation(df, x, y, covar):
-    try:
-        temp_df = df[[x, y, covar]].dropna()
-        if len(temp_df) < 3: return np.nan, np.nan
-
-        r_xy = temp_df[x].corr(temp_df[y])
-        r_xz = temp_df[x].corr(temp_df[covar])
-        r_yz = temp_df[y].corr(temp_df[covar])
-        
-        numerator = r_xy - (r_xz * r_yz)
-        denominator = np.sqrt((1 - r_xz**2) * (1 - r_yz**2))
-        
-        if denominator == 0: return np.nan, np.nan
-        return numerator / denominator, r_xy
-    except:
-        return np.nan, np.nan
+# --- 2. 関数定義 ---
 
 def create_csv_template():
+    """テンプレートCSVの生成"""
     template_df = pd.DataFrame({
-        '国語テスト(点)': [80, 65, 92, 75, 58, 85, 70, 95, 60, 78],
-        '読書量(冊)': [5, 2, 8, 4, 1, 6, 3, 10, 1, 5],
-        '語彙力スコア': [60, 45, 70, 55, 40, 62, 50, 75, 38, 58],
-        'スマホ時間(分)': [60, 120, 30, 90, 150, 50, 100, 20, 160, 80]
+        '店舗の売上(万)': [1200, 1150, 1400, 1600, 900, 1800, 1300, 1100, 1750, 1050],
+        '駅からの距離(分)': [5, 7, 3, 2, 10, 1, 6, 8, 2, 9],
+        '広告費用(万)': [30, 25, 40, 50, 10, 60, 35, 20, 55, 15],
+        '従業員数(人)': [4, 4, 5, 6, 3, 7, 5, 3, 6, 3],
+        '品揃え数(種)': [50, 45, 60, 70, 30, 80, 55, 40, 75, 35]
     })
     return template_df.to_csv(index=False)
 
-# --- 3. メイン処理 ---
+def run_regression_analysis(df, target_col, feature_cols):
+    """
+    Statsmodelsを用いて重回帰分析を行い、詳細な結果を返す
+    """
+    try:
+        # データの準備（欠損値除去）
+        data = df[[target_col] + feature_cols].dropna()
+        if len(data) < len(feature_cols) + 2:
+            return {"status": "error", "message": "データ数が少なすぎます。変数の数より多くのデータ行が必要です。"}
+
+        X = data[feature_cols]
+        y = data[target_col]
+
+        # 定数項（切片）の追加
+        X_with_const = sm.add_constant(X)
+
+        # 1. 通常の回帰分析（予測用）
+        model = sm.OLS(y, X_with_const).fit()
+
+        # 2. 標準化回帰係数の計算（影響度比較用）
+        # これが「純粋な要因の強さ」を見るために必要
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+        y_scaled = scaler.fit_transform(y.values.reshape(-1, 1))
+        
+        X_scaled_df = pd.DataFrame(X_scaled, columns=feature_cols)
+        X_scaled_df = sm.add_constant(X_scaled_df) 
+        model_scaled = sm.OLS(y_scaled, X_scaled_df).fit()
+
+        # 結果の整理
+        result_df = pd.DataFrame({
+            "変数名": feature_cols,
+            "係数 (傾き)": model.params[feature_cols],
+            "標準化係数 (影響度)": model_scaled.params[feature_cols],
+            "P値 (信頼度)": model.pvalues[feature_cols]
+        })
+
+        return {
+            "status": "success",
+            "model": model,
+            "result_df": result_df,
+            "r2": model.rsquared,
+            "adj_r2": model.rsquared_adj,
+            "data": data,
+            "target": target_col,
+            "features": feature_cols
+        }
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# --- 3. メインアプリ ---
 
 def main():
-    st.title("🔍 因果・相関分析マスター")
+    st.title("🚀 重回帰・要因分析マスター")
     st.markdown("""
-    データの「関係性」には種類があります。目的に合わせてタブを切り替えてください。
+    結果（売上や成績）を変えるための**「本当の要因（犯人）」**を見つけ出し、
+    さらに条件を変えたときの**「未来」**をシミュレーションします。
     """)
     
-    # --- サイドバー: ナビゲーションガイド ---
+    # --- サイドバー ---
     with st.sidebar:
-        st.header("🧭 迷ったらココを読む")
-        st.info("""
-        **Q. どっちを信じればいい？**
+        st.header("📂 データ設定")
+        uploaded_file = st.file_uploader("CSVをアップロード", type=["csv"])
         
-        👉 **「成績を上げたい」なら...**
-        **【STEP 2: 犯人探し】** を信じてください。見せかけの要因をいくら改善しても結果は変わりません。
-        
-        👉 **「来月の結果を知りたい」なら...**
-        **【STEP 3: 未来予測】** を信じてください。原因が何であれ、データ上の傾向を使えば予測は当たります。
-        """)
-        
-        st.divider()
-        st.header("📂 データ入力")
-        uploaded_file = st.file_uploader("CSVファイルをアップロード", type=["csv"])
-        
-        st.markdown("##### テスト用データ")
+        st.markdown("---")
+        st.markdown("##### 📌 テスト用データ")
         csv_text = create_csv_template()
-        st.download_button("📥 サンプルCSV", csv_text.encode('utf-8-sig'), "sample_data.csv", "text/csv")
+        st.download_button("📥 サンプルCSV", csv_text.encode('utf-8-sig'), "sample_regression.csv", "text/csv")
 
-    # データ読み込み
+    # データの読み込み
     if uploaded_file:
         try: df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
         except: 
             try: df = pd.read_csv(uploaded_file, encoding='shift-jis')
-            except: st.error("読込エラー"); return
+            except: st.error("読込エラー: 文字コードを確認してください"); return
     else:
         df = pd.read_csv(io.StringIO(create_csv_template()))
         st.info("💡 現在はサンプルデータモードです。")
 
     df_numeric = df.select_dtypes(include=[np.number])
     if df_numeric.shape[1] < 2:
-        st.warning("⚠️ 数値列が2つ以上必要です。")
+        st.error("分析には数値の列が2つ以上必要です。")
         return
 
-    # --- タブ名の変更：目的別に ---
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📊 STEP 1: 現状を見る (相関)", 
-        "🕵️ STEP 2: 犯人を探す (因果)", 
-        "🔮 STEP 3: 未来を読む (予測)", 
-        "📋 データ一覧"
-    ])
-
-    # ==========================================
-    # Tab 1: 相関 (現状把握)
-    # ==========================================
-    with tab1:
-        st.subheader("📊 データの「つながり」を確認する")
-        st.markdown("ここでは単純に**「Aが多いとき、Bも多いか？」**だけを見ます。理由（因果）は考えません。")
-        
-        corr_matrix = df_numeric.corr()
-        fig_corr = px.imshow(
-            corr_matrix, text_auto=".2f", aspect="auto", 
-            color_continuous_scale="RdBu_r", zmin=-1, zmax=1
+    # --- 変数選択エリア ---
+    st.markdown("### 1. 何を分析しますか？")
+    col_var1, col_var2 = st.columns(2)
+    
+    with col_var1:
+        target_var = st.selectbox("🎯 良くしたい結果 (Y)", df_numeric.columns, index=0)
+    
+    with col_var2:
+        feature_candidates = [c for c in df_numeric.columns if c != target_var]
+        feature_vars = st.multiselect(
+            "⚡ 要因と思われるもの (X)", 
+            feature_candidates, 
+            default=feature_candidates[:2] if len(feature_candidates)>=2 else feature_candidates
         )
-        st.plotly_chart(fig_corr, use_container_width=True)
-        st.caption("赤＝一緒に増える関係、青＝逆の動きをする関係")
 
-    # ==========================================
-    # Tab 2: 因果 (犯人探し) - 最重要
-    # ==========================================
-    with tab2:
-        st.subheader("🕵️ 結果を変えるための「本当の原因」を探す")
-        st.markdown("""
-        **「指導や対策」を考えるならココ！**
-        一見関係ありそうでも、別の要因（黒幕）がいる場合、対策しても無駄になります。
-        """)
+    # --- 分析実行ボタン ---
+    if st.button("🚀 分析を開始する", type="primary", use_container_width=True):
+        if not feature_vars:
+            st.warning("要因（説明変数）を少なくとも1つ選んでください。")
+        else:
+            with st.spinner("計算中..."):
+                res = run_regression_analysis(df_numeric, target_var, feature_vars)
+                # 結果をsession_stateに保存（これでスライダーを動かしても消えない）
+                st.session_state['reg_res'] = res
 
-        c1, c2, c3 = st.columns(3)
-        if len(df_numeric.columns) >= 3:
-            with c1: tx = st.selectbox("対策したい要因 (X)", df_numeric.columns, 0)
-            with c2: ty = st.selectbox("良くしたい結果 (Y)", df_numeric.columns, 1)
-            with c3: 
-                cands = [c for c in df_numeric.columns if c not in [tx, ty]]
-                tz = st.selectbox("疑わしい黒幕 (Z)", cands) if cands else None
+    # --- 結果の表示 ---
+    if 'reg_res' in st.session_state:
+        res = st.session_state['reg_res']
 
-            st.divider()
+        if res["status"] == "error":
+            st.error(f"エラーが発生しました: {res['message']}")
+        else:
+            # 変数選択が変わった場合の警告
+            if res['target'] != target_var or set(res['features']) != set(feature_vars):
+                 st.warning("⚠️ 選択項目が変更されました。「分析を開始する」ボタンを押して更新してください。")
+            else:
+                st.divider()
+                
+                # --- タブで目的を明確化 ---
+                tab1, tab2, tab3 = st.tabs([
+                    "🕵️ STEP 1: 犯人（要因）を探す", 
+                    "🔮 STEP 2: 未来をシミュレーション", 
+                    "📝 STEP 3: 診断とデータ"
+                ])
 
-            if tx and ty and tz:
-                if tx == ty:
-                    st.warning("要因と結果は別の変数にしてください")
-                else:
-                    p_corr, raw_corr = calculate_partial_correlation(df_numeric, tx, ty, tz)
+                # ==================================================
+                # Tab 1: 要因分析 (標準化係数) - ここが「因果」に近い部分
+                # ==================================================
+                with tab1:
+                    st.subheader("結局、何が一番効いているのか？")
+                    st.info("""
+                    **ここがポイント！**
+                    単純な「相関」とは違い、ここでは**「他の要因の影響を取り除いた、純粋な影響力」**を算出しています。
+                    見せかけの要因に騙されず、**本当に改善すべきポイント**がわかります。
+                    """)
                     
-                    if np.isnan(p_corr):
-                        st.error("計算できませんでした")
-                    else:
-                        # 結果表示
-                        col_res1, col_res2 = st.columns(2)
-                        with col_res1:
-                            st.metric("表面上の関係 (相関)", f"{raw_corr:.3f}")
-                        with col_res2:
-                            st.metric(f"黒幕({tz})を除いた本当の関係", f"{p_corr:.3f}", 
-                                      delta=f"{p_corr - raw_corr:.3f}", delta_color="inverse")
-                        
-                        # 親しみやすい診断メッセージ
-                        diff = abs(raw_corr - p_corr)
-                        st.markdown("### 📝 分析結果")
-                        
-                        if diff > 0.3 and abs(p_corr) < 0.2:
-                            st.error(f"""
-                            **⚠️ これは「見せかけ」です！ (疑似相関)**
+                    res_df = res["result_df"].copy()
+                    res_df["abs_impact"] = res_df["標準化係数 (影響度)"].abs()
+                    res_df = res_df.sort_values("abs_impact", ascending=True) # グラフ用にソート
+                    
+                    # 棒グラフの色分け
+                    res_df["color"] = res_df["標準化係数 (影響度)"].apply(
+                        lambda x: "青: 増やすと結果が良くなる" if x > 0 else "赤: 増やすと結果が悪くなる"
+                    )
+
+                    fig_bar = px.bar(
+                        res_df, 
+                        x="標準化係数 (影響度)", y="変数名", 
+                        orientation='h', color="color",
+                        color_discrete_map={"青: 増やすと結果が良くなる": "#3366CC", "赤: 増やすと結果が悪くなる": "#DC3912"},
+                        text_auto=".2f",
+                        title=f"「{target_var}」への純粋な影響力ランキング"
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+                    st.markdown("#### 📋 要因の詳細レポート")
+                    
+                    # 詳細な日本語解説
+                    for index, row in res["result_df"].iterrows():
+                        with st.expander(f"📌 **{row['変数名']}** の判定", expanded=True):
+                            c1, c2, c3 = st.columns([1, 1, 2])
                             
-                            「{tx}」と「{ty}」に関係があるように見えますが、実は両方とも「{tz}」の影響を受けているだけです。
-                            **【結論】 「{tx}」を頑張って改善しても、「{ty}」はほとんど上がらないでしょう。**
-                            対策するなら「{tz}」の方にアプローチすべきです。
-                            """)
-                        elif diff < 0.1:
-                            st.success(f"""
-                            **✅ これは「本物」の可能性が高いです！**
+                            is_reliable = row['P値 (信頼度)'] < 0.05
+                            icon = "✅" if is_reliable else "❓"
+                            reliability_text = "信頼できます" if is_reliable else "偶然の可能性があります"
                             
-                            「{tz}」の影響を考慮しても、関係性は消えませんでした。
-                            **【結論】 「{tx}」を改善すれば、「{ty}」も良くなる可能性が高いです。**
-                            自信を持って指導に取り入れてください。
-                            """)
+                            with c1:
+                                st.metric("影響の強さ", f"{abs(row['標準化係数 (影響度)']):.2f}")
+                            with c2:
+                                st.metric("信頼性判定", icon, help=f"P値: {row['P値 (信頼度)']:.4f}")
+                                st.caption(reliability_text)
+                            with c3:
+                                action = "増やす" if row['係数 (傾き)'] > 0 else "減らす"
+                                result_dir = "増えます" if row['係数 (傾き)'] > 0 else "減ります"
+                                
+                                if is_reliable:
+                                    st.success(f"**【本物の要因です】**\nこれを**{action}**と、{target_var}は確実に**{result_dir}**。優先して取り組みましょう。")
+                                else:
+                                    st.warning(f"**【決定的ではありません】**\nデータを増やすと結果が変わるかもしれません。今の段階では判断を保留してください。")
+
+                # ==================================================
+                # Tab 2: シミュレーション (回帰式)
+                # ==================================================
+                with tab2:
+                    st.subheader("🎛️ もし条件を変えたら、結果はどうなる？")
+                    st.markdown("STEP 1で見つけた要因を変化させて、未来の数値を予測します。")
+                    
+                    user_inputs = {}
+                    col_sim = st.columns(2)
+                    
+                    # スライダー生成
+                    for i, feature in enumerate(feature_vars):
+                        min_val = float(res['data'][feature].min())
+                        max_val = float(res['data'][feature].max())
+                        mean_val = float(res['data'][feature].mean())
+                        
+                        with col_sim[i % 2]:
+                            user_inputs[feature] = st.slider(
+                                f"🎚️ {feature} を...", 
+                                min_value=min_val, max_value=max_val, value=mean_val,
+                                key=f"sim_{feature}" # キーを一意にしてリセット防止
+                            )
+
+                    # 予測計算
+                    const = res['model'].params['const']
+                    prediction = const
+                    for feature, value in user_inputs.items():
+                        coef = res['result_df'][res['result_df']['変数名'] == feature]['係数 (傾き)'].values[0]
+                        prediction += coef * value
+                    
+                    st.markdown("---")
+                    st.markdown(f"### 🎯 予測される {target_var}")
+                    st.markdown(f"# **{prediction:,.1f}**")
+                    st.caption("※ STEP 1で「信頼性あり」と出た要因を動かした時のみ、この予測は信用できます。")
+
+                # ==================================================
+                # Tab 3: 診断 (モデル精度)
+                # ==================================================
+                with tab3:
+                    st.subheader("📈 この分析モデルは信用できる？")
+                    
+                    r2 = res['r2']
+                    col_eval1, col_eval2 = st.columns(2)
+                    
+                    with col_eval1:
+                        st.metric("予測精度 (決定係数 R²)", f"{r2:.3f}")
+                    with col_eval2:
+                        if r2 > 0.8:
+                            st.success("🌟 **非常に高い精度です**\nこのモデルの予測はかなり信頼できます。")
+                        elif r2 > 0.5:
+                            st.info("✅ **まあまあの精度です**\n傾向をつかむには十分です。")
                         else:
-                            st.warning(f"""
-                            **🤔 一部影響しています**
-                            
-                            「{tz}」も関係していますが、「{tx}」自身の効果もありそうです。
-                            """)
-        else:
-            st.warning("変数が3つ以上必要です")
+                            st.error("⚠️ **精度が低いです**\n重要な要因がまだデータに含まれていない可能性があります。")
 
-    # ==========================================
-    # Tab 3: 予測 (回帰)
-    # ==========================================
-    with tab3:
-        st.subheader("🔮 データの傾向から「未来」を予測する")
-        st.markdown("""
-        **「見込み」を知りたいならココ！**
-        因果関係がどうあれ、「今のデータ傾向だと、結果はどうなるか？」を正確に計算します。
-        """)
-        
-        c_sel1, c_sel2 = st.columns(2)
-        with c_sel1: x_col = st.selectbox("入力データ (X)", df_numeric.columns, 0, key='reg_x')
-        with c_sel2: y_col = st.selectbox("予測したいもの (Y)", df_numeric.columns, 1, key='reg_y')
-
-        if x_col == y_col:
-            st.warning("XとYは別の変数を選んでください。")
-        else:
-            plot_df = df.dropna(subset=[x_col, y_col])
-            if len(plot_df) > 0:
-                X = sm.add_constant(plot_df[x_col])
-                model = sm.OLS(plot_df[y_col], X).fit()
-                
-                slope = model.params.iloc[1]
-                intercept = model.params.iloc[0]
-                r2 = model.rsquared
-
-                # グラフ
-                fig = px.scatter(
-                    plot_df, x=x_col, y=y_col, trendline="ols",
-                    trendline_color_override="red", hover_data=df.columns
-                )
-                fig.update_layout(title=f"予測モデル: {x_col} → {y_col}")
-                st.plotly_chart(fig, use_container_width=True)
-
-                # レポート
-                st.markdown("### 📝 予測レポート")
-                col_rep1, col_rep2 = st.columns(2)
-                
-                with col_rep1:
-                    st.metric("予測の正確さ (決定係数)", f"{r2*100:.1f}%")
-                    if r2 > 0.5:
-                        st.success("かなり正確に予測できます。")
-                    else:
-                        st.warning("予測のズレが大きいです。")
-                        
-                with col_rep2:
-                    st.info(f"💡 **注意点**: \nここで「正確に予測できる」と出ても、STEP 2で「見せかけ」と判定された場合は、**{x_col}を無理やり増やしても結果は変わりません。**")
-
-                # シミュレーター
-                st.markdown("---")
-                st.write(f"**👇 スライダーでシミュレーション ({x_col}を変えるとどうなる？)**")
-                
-                user_x = st.slider(
-                    f"{x_col} の値",
-                    float(plot_df[x_col].min()),
-                    float(plot_df[x_col].max()),
-                    float(plot_df[x_col].mean())
-                )
-                pred_y = slope * user_x + intercept
-                
-                st.metric(f"予測される {y_col}", f"{pred_y:.1f}")
-
-    # ==========================================
-    # Tab 4: データ
-    # ==========================================
-    with tab4:
-        st.dataframe(df, use_container_width=True)
+                    st.markdown("#### 実測値と予測値のズレを確認")
+                    pred_y = res['model'].predict(sm.add_constant(res['data'][feature_vars]))
+                    actual_y = res['data'][target_var]
+                    
+                    fig_sc = px.scatter(
+                        x=actual_y, y=pred_y, 
+                        labels={'x': '実際の結果', 'y': '計算上の予測値'},
+                        title="答え合わせ (点線に近いほど正確)"
+                    )
+                    min_all = min(actual_y.min(), pred_y.min())
+                    max_all = max(actual_y.max(), pred_y.max())
+                    fig_sc.add_shape(type="line", x0=min_all, y0=min_all, x1=max_all, y1=max_all,
+                                    line=dict(color="Red", dash="dash"))
+                    st.plotly_chart(fig_sc, use_container_width=True)
 
 if __name__ == "__main__":
     main()
