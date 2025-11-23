@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
 import io
@@ -46,11 +47,11 @@ def run_regression_analysis(df, target_col, feature_cols):
         model = sm.OLS(y, X_with_const).fit()
 
         # 2. 標準化回帰係数の計算（影響度比較用）
-        # これが「純粋な要因の強さ」を見るために必要
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
         y_scaled = scaler.fit_transform(y.values.reshape(-1, 1))
         
+        # statsmodelsで標準化データを計算するためにDataFrame化
         X_scaled_df = pd.DataFrame(X_scaled, columns=feature_cols)
         X_scaled_df = sm.add_constant(X_scaled_df) 
         model_scaled = sm.OLS(y_scaled, X_scaled_df).fit()
@@ -63,12 +64,16 @@ def run_regression_analysis(df, target_col, feature_cols):
             "P値 (信頼度)": model.pvalues[feature_cols]
         })
 
+        # 評価指標
+        r2 = model.rsquared
+        adj_r2 = model.rsquared_adj
+        
         return {
             "status": "success",
             "model": model,
             "result_df": result_df,
-            "r2": model.rsquared,
-            "adj_r2": model.rsquared_adj,
+            "r2": r2,
+            "adj_r2": adj_r2,
             "data": data,
             "target": target_col,
             "features": feature_cols
@@ -82,30 +87,36 @@ def run_regression_analysis(df, target_col, feature_cols):
 def main():
     st.title("🚀 重回帰・要因分析マスター")
     st.markdown("""
-    結果（売上や成績）を変えるための**「本当の要因（犯人）」**を見つけ出し、
-    さらに条件を変えたときの**「未来」**をシミュレーションします。
+    **「結果（売上や点数）」**に対して、**「どの要因（広告や勉強時間）」**がどれくらい効いているのか？
+    数式を使ってズバリ分析し、AIレポートで解説します。
     """)
     
     # --- サイドバー ---
     with st.sidebar:
         st.header("📂 データ設定")
+        
+        # 1. データアップロード
         uploaded_file = st.file_uploader("CSVをアップロード", type=["csv"])
         
         st.markdown("---")
+        # テンプレート
         st.markdown("##### 📌 テスト用データ")
         csv_text = create_csv_template()
         st.download_button("📥 サンプルCSV", csv_text.encode('utf-8-sig'), "sample_regression.csv", "text/csv")
 
-    # データの読み込み
+    # データの読み込み処理
     if uploaded_file:
-        try: df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
-        except: 
+        try:
+            df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
+        except:
             try: df = pd.read_csv(uploaded_file, encoding='shift-jis')
             except: st.error("読込エラー: 文字コードを確認してください"); return
     else:
+        # デモモード
         df = pd.read_csv(io.StringIO(create_csv_template()))
-        st.info("💡 現在はサンプルデータモードです。")
+        st.info("💡 現在はサンプルデータモードです。左側から自分のデータをアップロードできます。")
 
+    # 数値列の抽出
     df_numeric = df.select_dtypes(include=[np.number])
     if df_numeric.shape[1] < 2:
         st.error("分析には数値の列が2つ以上必要です。")
@@ -116,12 +127,12 @@ def main():
     col_var1, col_var2 = st.columns(2)
     
     with col_var1:
-        target_var = st.selectbox("🎯 良くしたい結果 (Y)", df_numeric.columns, index=0)
+        target_var = st.selectbox("🎯 予測したい結果 (目的変数 Y)", df_numeric.columns, index=0)
     
     with col_var2:
         feature_candidates = [c for c in df_numeric.columns if c != target_var]
         feature_vars = st.multiselect(
-            "⚡ 要因と思われるもの (X)", 
+            "⚡ 要因と思われるもの (説明変数 X)", 
             feature_candidates, 
             default=feature_candidates[:2] if len(feature_candidates)>=2 else feature_candidates
         )
@@ -131,97 +142,107 @@ def main():
         if not feature_vars:
             st.warning("要因（説明変数）を少なくとも1つ選んでください。")
         else:
-            with st.spinner("計算中..."):
+            with st.spinner("AIが統計モデルを計算中..."):
                 res = run_regression_analysis(df_numeric, target_var, feature_vars)
-                # 結果をsession_stateに保存（これでスライダーを動かしても消えない）
-                st.session_state['reg_res'] = res
+                # ★修正点: 結果をsession_stateに保存する
+                st.session_state['res'] = res
 
-    # --- 結果の表示 ---
-    if 'reg_res' in st.session_state:
-        res = st.session_state['reg_res']
+    # --- 結果の表示処理 (session_stateに結果があれば表示) ---
+    if 'res' in st.session_state:
+        res = st.session_state['res']
 
         if res["status"] == "error":
             st.error(f"エラーが発生しました: {res['message']}")
         else:
-            # 変数選択が変わった場合の警告
+            # 変数選択が変わっていた場合の整合性チェック
+            # (以前の結果と現在の変数が食い違っている場合、再実行を促すかエラー回避)
             if res['target'] != target_var or set(res['features']) != set(feature_vars):
-                 st.warning("⚠️ 選択項目が変更されました。「分析を開始する」ボタンを押して更新してください。")
+                 st.warning("⚠️ 変数の選択が変更されました。「分析を開始する」ボタンをもう一度押して更新してください。")
             else:
+                # =========================================
+                # 結果表示パート
+                # =========================================
                 st.divider()
-                
-                # --- タブで目的を明確化 ---
-                tab1, tab2, tab3 = st.tabs([
-                    "🕵️ STEP 1: 犯人（要因）を探す", 
-                    "🔮 STEP 2: 未来をシミュレーション", 
-                    "📝 STEP 3: 診断とデータ"
+                st.header("📊 分析レポート")
+
+                # --- 1. モデル精度 ---
+                col_m1, col_m2, col_m3 = st.columns(3)
+                with col_m1:
+                    st.metric("決定係数 (R²)", f"{res['r2']:.3f}", help="1に近いほど予測精度が高い（0.5以上ならまあまあ）")
+                with col_m2:
+                    st.metric("自由度調整済み R²", f"{res['adj_r2']:.3f}", help="変数の数を考慮した精度。より厳密な指標。")
+                with col_m3:
+                    score = res['r2']
+                    if score > 0.8: eval_text = "🌟 非常に高い精度です！"
+                    elif score > 0.5: eval_text = "✅ 信頼できる精度です"
+                    else: eval_text = "⚠️ 精度は低めです（他の要因が必要かも）"
+                    st.info(f"**AI判定:**\n\n{eval_text}")
+
+                # タブ切り替え
+                tab1, tab2, tab3, tab4 = st.tabs([
+                    "🏆 要因の影響度ランキング", 
+                    "📝 AI詳細解説", 
+                    "🔮 未来シミュレーター", 
+                    "📈 診断グラフ"
                 ])
 
-                # ==================================================
-                # Tab 1: 要因分析 (標準化係数) - ここが「因果」に近い部分
-                # ==================================================
+                # === Tab 1: 影響度ランキング ===
                 with tab1:
-                    st.subheader("結局、何が一番効いているのか？")
-                    st.info("""
-                    **ここがポイント！**
-                    単純な「相関」とは違い、ここでは**「他の要因の影響を取り除いた、純粋な影響力」**を算出しています。
-                    見せかけの要因に騙されず、**本当に改善すべきポイント**がわかります。
-                    """)
+                    st.subheader("結局、何が一番重要なのか？")
+                    st.markdown("単位を無視して、**「純粋な影響力の強さ」**を比較したグラフです。")
                     
                     res_df = res["result_df"].copy()
                     res_df["abs_impact"] = res_df["標準化係数 (影響度)"].abs()
-                    res_df = res_df.sort_values("abs_impact", ascending=True) # グラフ用にソート
-                    
-                    # 棒グラフの色分け
-                    res_df["color"] = res_df["標準化係数 (影響度)"].apply(
-                        lambda x: "青: 増やすと結果が良くなる" if x > 0 else "赤: 増やすと結果が悪くなる"
-                    )
+                    res_df = res_df.sort_values("abs_impact", ascending=True)
+
+                    res_df["color"] = res_df["標準化係数 (影響度)"].apply(lambda x: "プラスの影響 (増える)" if x > 0 else "マイナスの影響 (減る)")
 
                     fig_bar = px.bar(
                         res_df, 
-                        x="標準化係数 (影響度)", y="変数名", 
-                        orientation='h', color="color",
-                        color_discrete_map={"青: 増やすと結果が良くなる": "#3366CC", "赤: 増やすと結果が悪くなる": "#DC3912"},
+                        x="標準化係数 (影響度)", 
+                        y="変数名", 
+                        orientation='h',
+                        color="color",
+                        color_discrete_map={"プラスの影響 (増える)": "#3366CC", "マイナスの影響 (減る)": "#DC3912"},
                         text_auto=".2f",
-                        title=f"「{target_var}」への純粋な影響力ランキング"
+                        title=f"「{target_var}」への影響度ランキング"
                     )
                     st.plotly_chart(fig_bar, use_container_width=True)
+                    st.caption("※ 棒が長いほど、結果に対する支配力が強い要因です。")
 
-                    st.markdown("#### 📋 要因の詳細レポート")
+                # === Tab 2: AI詳細解説 ===
+                with tab2:
+                    st.subheader("🧐 各要因の詳細評価")
+                    display_df = res["result_df"].drop(columns=["abs_impact", "color"], errors='ignore')
                     
-                    # 詳細な日本語解説
-                    for index, row in res["result_df"].iterrows():
-                        with st.expander(f"📌 **{row['変数名']}** の判定", expanded=True):
+                    for index, row in display_df.iterrows():
+                        with st.expander(f"📌 **{row['変数名']}** の評価", expanded=True):
                             c1, c2, c3 = st.columns([1, 1, 2])
-                            
-                            is_reliable = row['P値 (信頼度)'] < 0.05
-                            icon = "✅" if is_reliable else "❓"
-                            reliability_text = "信頼できます" if is_reliable else "偶然の可能性があります"
+                            is_significant = row['P値 (信頼度)'] < 0.05
+                            sig_icon = "✅" if is_significant else "❓"
+                            sig_text = "統計的に信頼できます" if is_significant else "偶然の可能性があります"
                             
                             with c1:
-                                st.metric("影響の強さ", f"{abs(row['標準化係数 (影響度)']):.2f}")
+                                st.metric("1増えるとどうなる？", f"{row['係数 (傾き)']:.2f}")
                             with c2:
-                                st.metric("信頼性判定", icon, help=f"P値: {row['P値 (信頼度)']:.4f}")
-                                st.caption(reliability_text)
+                                st.metric("信頼性", sig_icon, help=f"P値: {row['P値 (信頼度)']:.4f}")
+                                st.caption(sig_text)
                             with c3:
-                                action = "増やす" if row['係数 (傾き)'] > 0 else "減らす"
-                                result_dir = "増えます" if row['係数 (傾き)'] > 0 else "減ります"
-                                
-                                if is_reliable:
-                                    st.success(f"**【本物の要因です】**\nこれを**{action}**と、{target_var}は確実に**{result_dir}**。優先して取り組みましょう。")
-                                else:
-                                    st.warning(f"**【決定的ではありません】**\nデータを増やすと結果が変わるかもしれません。今の段階では判断を保留してください。")
+                                impact_dir = "増加" if row['係数 (傾き)'] > 0 else "減少"
+                                st.markdown(f"""
+                                **【AI解説】**
+                                この変数が **1** 増えると、{target_var}は約 **{abs(row['係数 (傾き)']):.2f} {impact_dir}** すると予測されます。
+                                """)
 
-                # ==================================================
-                # Tab 2: シミュレーション (回帰式)
-                # ==================================================
-                with tab2:
-                    st.subheader("🎛️ もし条件を変えたら、結果はどうなる？")
-                    st.markdown("STEP 1で見つけた要因を変化させて、未来の数値を予測します。")
+                # === Tab 3: 未来シミュレーター ===
+                with tab3:
+                    st.subheader("🎛️ もし条件を変えたらどうなる？")
+                    st.markdown("スライダーを動かして、未来の結果を予測してみましょう。")
                     
                     user_inputs = {}
                     col_sim = st.columns(2)
                     
-                    # スライダー生成
+                    # スライダーの再描画によるリセットを防ぐため、session_stateはここで活きる
                     for i, feature in enumerate(feature_vars):
                         min_val = float(res['data'][feature].min())
                         max_val = float(res['data'][feature].max())
@@ -229,14 +250,16 @@ def main():
                         
                         with col_sim[i % 2]:
                             user_inputs[feature] = st.slider(
-                                f"🎚️ {feature} を...", 
-                                min_value=min_val, max_value=max_val, value=mean_val,
-                                key=f"sim_{feature}" # キーを一意にしてリセット防止
+                                f"🎚️ {feature}", 
+                                min_value=min_val, 
+                                max_value=max_val, 
+                                value=mean_val,
+                                key=f"sim_slider_{feature}" # キーを一意にする
                             )
 
-                    # 予測計算
                     const = res['model'].params['const']
                     prediction = const
+                    
                     for feature, value in user_inputs.items():
                         coef = res['result_df'][res['result_df']['変数名'] == feature]['係数 (傾き)'].values[0]
                         prediction += coef * value
@@ -244,35 +267,17 @@ def main():
                     st.markdown("---")
                     st.markdown(f"### 🎯 予測される {target_var}")
                     st.markdown(f"# **{prediction:,.1f}**")
-                    st.caption("※ STEP 1で「信頼性あり」と出た要因を動かした時のみ、この予測は信用できます。")
 
-                # ==================================================
-                # Tab 3: 診断 (モデル精度)
-                # ==================================================
-                with tab3:
-                    st.subheader("📈 この分析モデルは信用できる？")
-                    
-                    r2 = res['r2']
-                    col_eval1, col_eval2 = st.columns(2)
-                    
-                    with col_eval1:
-                        st.metric("予測精度 (決定係数 R²)", f"{r2:.3f}")
-                    with col_eval2:
-                        if r2 > 0.8:
-                            st.success("🌟 **非常に高い精度です**\nこのモデルの予測はかなり信頼できます。")
-                        elif r2 > 0.5:
-                            st.info("✅ **まあまあの精度です**\n傾向をつかむには十分です。")
-                        else:
-                            st.error("⚠️ **精度が低いです**\n重要な要因がまだデータに含まれていない可能性があります。")
-
-                    st.markdown("#### 実測値と予測値のズレを確認")
+                # === Tab 4: 診断グラフ ===
+                with tab4:
+                    st.subheader("📈 予測精度と残差のチェック")
                     pred_y = res['model'].predict(sm.add_constant(res['data'][feature_vars]))
                     actual_y = res['data'][target_var]
                     
                     fig_sc = px.scatter(
                         x=actual_y, y=pred_y, 
-                        labels={'x': '実際の結果', 'y': '計算上の予測値'},
-                        title="答え合わせ (点線に近いほど正確)"
+                        labels={'x': '実際の結果', 'y': 'AIの予測値'},
+                        title="予測の答え合わせ"
                     )
                     min_all = min(actual_y.min(), pred_y.min())
                     max_all = max(actual_y.max(), pred_y.max())
